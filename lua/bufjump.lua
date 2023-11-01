@@ -6,7 +6,7 @@ end
 local jumpforward = function(num)
 	vim.cmd([[execute "normal! ]] .. tostring(num) .. [[\<c-i>"]])
 end
-local backward = function()
+local backwardBuffer = function()
 	local getjumplist = vim.fn.getjumplist()
 	local jumplist = getjumplist[1]
 	if #jumplist == 0 then
@@ -31,7 +31,49 @@ local backward = function()
 	end
 end
 
-local forward = function()
+local backwardInBuffer = function()
+	local getjumplist = vim.fn.getjumplist()
+	local jumplist = getjumplist[1]
+	if #jumplist == 0 then
+		return
+	end
+
+	local i = getjumplist[2] + 1
+	local curBufNum = vim.fn.bufnr()
+
+	if i - 1 < 1 or jumplist[i - 1].bufnr ~= curBufNum then
+		return
+	end
+
+	jumpbackward(1)
+	if on_success then
+		on_success()
+	end
+end
+
+local forwardInBuffer = function()
+	local getjumplist = vim.fn.getjumplist()
+	local jumplist = getjumplist[1]
+	if #jumplist == 0 then
+		return
+	end
+
+	local i = getjumplist[2] + 1
+	local curBufNum = vim.fn.bufnr()
+
+	-- find the next jump in same buffer
+	if i + 1 > #jumplist or jumplist[i + 1].bufnr ~= curBufNum then
+		return
+	end
+
+	jumpforward(1)
+
+	if on_success then
+		on_success()
+	end
+end
+
+local forwardBuffer = function()
 	local getjumplist = vim.fn.getjumplist()
 	local jumplist = getjumplist[1]
 	if #jumplist == 0 then
@@ -59,18 +101,29 @@ local forward = function()
 		end
 	end
 end
+
 local setup = function(cfg)
 	local opts = { silent = true, noremap = true }
 	cfg = cfg or {}
 	local forwardkey = cfg.forward or "<C-n>"
 	local backwardkey = cfg.backward or "<C-p>"
+	local backwardInBufferKey = cfg.backwardInBuffer
+	local forwardInBufferKey = cfg.forwardInBuffer
 	on_success = cfg.on_success or nil
-	vim.api.nvim_set_keymap("n", backwardkey, ":lua require('bufjump').backward()<cr>", opts)
-	vim.api.nvim_set_keymap("n", forwardkey, ":lua require('bufjump').forward()<cr>", opts)
+	vim.keymap.set("n", backwardkey, backwardBuffer, opts)
+	vim.keymap.set("n", forwardkey, forwardBuffer, opts)
+	if backwardInBufferKey then
+		vim.keymap.set("n", backwardInBufferKey, backwardInBuffer, opts)
+	end
+	if forwardInBufferKey then
+		vim.keymap.set("n", forwardInBufferKey, forwardInBuffer, opts)
+	end
 end
 
 return {
-	backward = backward,
-	forward = forward,
+	backward = backwardBuffer,
+	forward = forwardBuffer,
+	forwardInBuffer = forwardInBuffer,
+	backwardInBuffer = backwardInBuffer,
 	setup = setup,
 }
